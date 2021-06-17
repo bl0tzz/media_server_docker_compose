@@ -1,0 +1,148 @@
+version: '3.4'
+services:
+
+  jacket-vpn:
+    container_name: jackett-vpn
+    image: dyonr/jackettvpn:latest
+    cap_add:
+      - net_admin
+    restart: unless-stopped
+    network_mode: bridge
+    environment:
+      - TZ=TIMEZONE
+      - VPN_ENABLED=yes
+      - VPN_TYPE=openvpn
+      - LAN_NETWORK=192.168.0.0/16
+      - WEBUI_PASSWORD=test
+      - VPN_USERNAME=VPNUSER
+      - VPN_PASSWORD=VPNPASSWORD
+    volumes:
+      - /dev/net/tun:/dev/net/tun
+      - /etc/localtime:/etc/localtime:ro
+      - /local/path/to/config:/config
+      - /local/path/to/downloads:/downloads
+    ports:
+      - 9117:9117
+
+  sonarr:
+    container_name: sonarr
+    image: linuxserver/sonarr:latest
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - PUID=1000 # default user id, for downloaded files access rights
+      - PGID=1000 # default group id, for downloaded files access rights
+      - TZ=TIMEZONE # timezone
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /local/path/to/config:/config # config files
+      - /local/path/to/tvshows:/tv # tv shows folder
+      - /local/path/to/downloads:/downloads # download folder
+      - /local/path/to/completed/downloads:/data/completed # work around
+
+  radarr:
+    container_name: radarr
+    image: linuxserver/radarr:latest
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - PUID=1000 # default user id, for downloaded files access rights
+      - PGID=1000 # default group id, for downloaded files access rights
+      - TZ=TIMEZONE # timezone
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /local/path/to/config:/config # config files
+      - /local/path/to/movies:/movies # movies folder
+      - /local/path/to/downloads:/downloads # download folder
+      
+  tautulli:
+    container_name: tautulli
+    restart: always
+    image: linuxserver/tautulli
+    volumes:
+      - /local/path/to/config:/config
+      - /local/path/to/config/logs:/logs:ro
+      - /local/path/to/config/shared:/shared
+    ports:
+      - "8181:8181"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=TIMEZONE
+      
+  plex:
+    container_name: plex
+    image: linuxserver/plex:latest
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - VERSION=docker
+    volumes:
+      - /local/path/to/config:/config
+      - /local/path/to/tvshows:/tv
+      - /local/path/to/movies:/movies
+    devices:
+      - /dev/dri:/dev/dri #Required for intel hardware acceleration
+
+  transmission-openvpn:
+    container_name: transmission-vpn
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - '/local/path/to/config:/data'
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - OPENVPN_PROVIDER=PIA
+      - OPENVPN_CONFIG=CONFIGFILE
+      - OPENVPN_USERNAME=VPNUSER
+      - OPENVPN_PASSWORD=VPNPASSWORD
+      - LOCAL_NETWORK=192.168.0.0/16
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+    ports:
+      - '9091:9091'
+    image: haugene/transmission-openvpn
+
+  requestrr:
+    image: darkalfx/requestrr
+    container_name: requestrr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=TIMEZONE
+    volumes:
+      - /local/path/to/config:/root/config
+    ports:
+      - 4545:4545
+    restart: unless-stopped
+
+  portainer:
+    image: portainer/portainer-ce
+    container_name: portainer
+    ports:
+      - 8000:8000
+      - 9000:9000
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /local/path/to/config:/data
+    
+  nginx:
+    image: ghcr.io/linuxserver/nginx
+    container_name: nginx
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=TIMEZONE
+    volumes:
+      - /local/path/to/config:/config
+    ports:
+      - 80:80
+      - 443:443
+    restart: unless-stopped
